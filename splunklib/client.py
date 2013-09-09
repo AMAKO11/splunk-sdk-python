@@ -76,8 +76,7 @@ __all__ = [
     "NotSupportedError",
     "OperationError",
     "IncomparableException",
-    "Service",
-    "namespace"
+    "Service"
 ]
 
 PATH_APPS = "apps/local/"
@@ -96,12 +95,14 @@ PATH_JOBS = "search/jobs/"
 PATH_LOGGER = "server/logger/"
 PATH_MESSAGES = "messages/"
 PATH_MODULAR_INPUTS = "data/modular-inputs"
-PATH_ROLES = "authorization/roles/"
+PATH_ROLES = "authentication/roles/"
 PATH_SAVED_SEARCHES = "saved/searches/"
 PATH_STANZA = "configs/conf-%s/%s" # (file, stanza)
 PATH_USERS = "authentication/users/"
 PATH_RECEIVERS_STREAM = "receivers/stream"
 PATH_RECEIVERS_SIMPLE = "receivers/simple"
+
+PATH_CLUSTER_CONFIG = "cluster/config"
 
 XNAMEF_ATOM = "{http://www.w3.org/2005/Atom}%s"
 XNAME_ENTRY = XNAMEF_ATOM % "entry"
@@ -491,7 +492,7 @@ class Service(_BaseService):
         :param timeout: A timeout period, in seconds.
         :type timeout: ``integer``
         """
-        result = self.post("server/control/restart")
+        result = self.get("server/control/restart")
         if timeout is None: return result
         start = datetime.now()
         diff = timedelta(seconds=10)
@@ -605,6 +606,15 @@ class Service(_BaseService):
         :return: A :class:`Users` collection of :class:`User` entities.
         """
         return Users(self)
+    
+    @property
+    def cluster_config(self):
+        """Returns the collection of cluster configuration items.
+
+        :return: A :class:`ClusterConfigs` collection of :class:`ClusterConfig` entities.
+        """
+        return Cluster(self)["config"]
+
 
 class Endpoint(object):
     """This class represents individual Splunk resources in the Splunk REST API.
@@ -2424,7 +2434,6 @@ class Job(Entity):
 
         :return: The ``InputStream`` IO handle to this job's events.
         """
-        kwargs['segmentation'] = kwargs.get('segmentation', 'none')
         return self.get("events", **kwargs).body
 
     def finalize(self):
@@ -2510,7 +2519,6 @@ class Job(Entity):
 
         :return: The ``InputStream`` IO handle to this job's results.
         """
-        query_params['segmentation'] = query_params.get('segmentation', 'none')
         return self.get("results", **query_params).body
 
     def preview(self, **query_params):
@@ -2553,7 +2561,6 @@ class Job(Entity):
 
         :return: The ``InputStream`` IO handle to this job's preview results.
         """
-        query_params['segmentation'] = query_params.get('segmentation', 'none')
         return self.get("results_preview", **query_params).body
 
     def searchlog(self, **kwargs):
@@ -2721,10 +2728,7 @@ class Jobs(Collection):
         """
         if "exec_mode" in params:
             raise TypeError("Cannot specify an exec_mode to export.")
-        params['segmentation'] = params.get('segmentation', 'none')
-        return self.post(path_segment="export",
-                         search=query, 
-                         **params).body
+        return self.post(path_segment="export", search=query, **params).body
 
     def itemmeta(self):
         """There is no metadata available for class:``Jobs``.
@@ -2784,10 +2788,7 @@ class Jobs(Collection):
         """
         if "exec_mode" in params:
             raise TypeError("Cannot specify an exec_mode to oneshot.")
-        params['segmentation'] = params.get('segmentation', 'none')
-        return self.post(search=query,
-                         exec_mode="oneshot", 
-                         **params).body
+        return self.post(search=query, exec_mode="oneshot", **params).body
 
 
 class Loggers(Collection):
@@ -3276,6 +3277,66 @@ class Application(Entity):
         """Returns any update information that is available for the app."""
         return self._run_action("update")
 
+class ClusterConfig(Entity):
+    """This class represents a Splunk cluster configuration.
+    """
+    @property
+    def replication_factor(self):
+        """Returns the replication factor configured for this cluster.
+
+        :return: The replication factor.
+        :rtype: string
+        """
+        return self.service.Cluster["replication_factor"]
+
+    @property
+    def master_uri(self):
+        """Returns the cluster master url.
+
+        :return: The uri for the cluster master.
+        :rtype: string
+        """
+        return self.service.Cluster["master_uri"]
+
+    @property
+    def replication_port(self):
+        """TCP port to listen for replicated data from another cluster member.
+
+        :return: The port for data replication.
+        :rtype: string
+        """
+        return self.service.Cluster["replication_port"]
+
+    @property
+    def search_factor(self):
+        """TCP port to listen for replicated data from another cluster member.
+
+        :return: The port for data replication.
+        :rtype: string
+        """
+        return self.service.Cluster["replication_port"]
+        
 
 
+class Cluster(Collection):
+    """This class represents the collection of cluster configuration items for this 
+    instance of Splunk. Retrieve this collection using :meth:`Service.Cluster`.
+    """
+    def __init__(self, service):
+        Collection.__init__(self, service, PATH_CLUSTER_CONFIG, item=ClusterConfig)
+
+    def __getitem__(self, key):
+        return Collection.__getitem__(self, key.lower())
+
+    def __contains__(self, name):
+        return Collection.__contains__(self, name.lower())
+
+    def create(self, arg):
+        """Creates or update a config item."""
+        pass 
+
+
+    def delete(self, name):
+        """ Not implemented."""
+        pass 
 
