@@ -103,6 +103,7 @@ PATH_RECEIVERS_STREAM = "receivers/stream"
 PATH_RECEIVERS_SIMPLE = "receivers/simple"
 
 PATH_CLUSTER_CONFIG = "cluster/config"
+PATH_SEARCH_HEAD_PEERS = "cluster/searchhead/generation"
 
 XNAMEF_ATOM = "{http://www.w3.org/2005/Atom}%s"
 XNAME_ENTRY = XNAMEF_ATOM % "entry"
@@ -3290,6 +3291,15 @@ class ClusterConfig(Entity):
         return self.service.Cluster["replication_factor"]
 
     @property
+    def disabled(self):
+        """Indicates if this node is disabled.
+
+        :return: disabled.
+        :rtype: 0 and 1
+        """
+        return self.service.Cluster["disabled"]
+
+    @property
     def master_uri(self):
         """Returns the cluster master url.
 
@@ -3315,7 +3325,15 @@ class ClusterConfig(Entity):
         :rtype: string
         """
         return self.service.Cluster["replication_port"]
-        
+
+    @property
+    def get_generation_peers(self):
+        """TCP port to listen for replicated data from another cluster member.
+
+        :return: The port for data replication.
+        :rtype: string
+        """
+        return self.service.Cluster["replication_port"]
 
 
 class Cluster(Collection):
