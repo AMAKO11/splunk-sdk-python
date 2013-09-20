@@ -3318,13 +3318,13 @@ class ClusterConfig(Entity):
         return self.service.Cluster["replication_port"]
 
     @property
-    def search_factor(self):
+    def replication_factor(self):
         """TCP port to listen for replicated data from another cluster member.
 
         :return: The port for data replication.
         :rtype: string
         """
-        return self.service.Cluster["replication_port"]
+        return self.service.Cluster["replication_factor"]
 
     @property
     def get_generation_peers(self):
