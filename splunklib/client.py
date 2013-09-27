@@ -103,7 +103,7 @@ PATH_RECEIVERS_STREAM = "receivers/stream"
 PATH_RECEIVERS_SIMPLE = "receivers/simple"
 
 PATH_CLUSTER_CONFIG = "cluster/config"
-PATH_SEARCH_HEAD_PEERS = "cluster/searchhead/generation"
+PATH_SEARCH_HEAD = "cluster/searchhead"
 PATH_MASTER_PEERS = 'cluster/master/peers'
 
 XNAMEF_ATOM = "{http://www.w3.org/2005/Atom}%s"
@@ -618,13 +618,21 @@ class Service(_BaseService):
         return Cluster(self)["config"]
 
     @property
-    def cluster_master(self):
+    def cluster_peers(self):
         """Returns the collection of cluster master configuration items.
 
-        :return: A :class:`ClusterConfigs` collection of :class:`ClusterConfig` entities.
+        :return: A :class:`ClusterPeers` collection of :class:`ClusterPeer` entities.
         """
-        return Master(self)
+        return ClusterPeers(self)
 
+    @property
+    def search_head_generation(self):
+        """Returns the collection of search heads.
+
+        :return: A :class:`SearchHeads` collection of :class:`SearchHead` entities.
+        """
+        return SearchHeadGeneration(self)["generation"]
+        #return Cluster(self)["config"]['searchhead']
 
 
 class Endpoint(object):
@@ -3309,7 +3317,6 @@ class ClusterConfig(Entity):
         """
         return self.service.Cluster["search_factor"]
 
-
     @property
     def disabled(self):
         """Indicates if this node is disabled.
@@ -3318,6 +3325,16 @@ class ClusterConfig(Entity):
         :rtype: 0 and 1
         """
         return self.service.Cluster["disabled"]
+
+    @property
+    def mode(self):
+        """Indicates if this node is disabled.
+
+        :return: mode.
+        :rtype: string
+        """
+        return self.service.Cluster["mode"]
+
 
     @property
     def master_uri(self):
@@ -3365,6 +3382,134 @@ class ClusterConfig(Entity):
         """
         return self.service.Cluster["XXXX"]
 
+class ClusterPeer(Entity):
+    """This class represents a Splunk cluster master configuration.
+    """
+    #cluster = Cluster( path=PATH_CLUSTER_CONFIG, cfg_item=ClusterConfig)
+    @property
+    def host_port_pair(self):
+        """Returns the replication factor configured for this cluster.
+
+        :return: The replication factor.
+        :rtype: string
+        """
+        return self.service.Cluster["host_port_pair"]
+
+    @property
+    def replication_port(self):
+        """TCP port to listen for replicated data from another cluster member.
+
+        :return: the port
+        :rtype: consult rest documentation for valid values
+        """
+        return self.service.Cluster["replication_port"]
+
+    @property
+    def label(self):
+        """Indicates the label of this cluster.
+
+        :return: The label.
+        :rtype: string
+        """
+        return self.service.Cluster["label"]
+
+    @property
+    def status(self):
+        """Indicates the status of this cluster.
+
+        :return: The status.
+        :rtype: string
+        """
+        return self.service.Cluster["status"]
+
+class Generation(Entity):
+    """This class represents a Splunk search head cluster configuration.
+    """
+    @property
+    def generation_id(self):
+        return self.service.SearchHeadGeneration["generation_id"]
+    @property
+    def generation_peers(self):
+        """Access the peers available to a searchhead in a cluster.
+
+        :return: Lists the peers for this generation of the cluster.
+        :rtype: dict
+        """
+        return self.service.SearchHeadGeneration["generation_peers"]
+
+    def get_peers(self):
+        gen_peers = self.generation_peers
+        result = []
+        for key, elem in gen_peers.iteritems():
+            pair = elem["host_port_pair"]
+            host_name = elem["peer"]
+            peer = GenerationPeer(key, pair, host_name)
+            result.append(peer)
+        return result
+
+
+class GenerationPeer(object):
+    """This class represents a Splunk search head peer.
+    """
+
+    def __init__(self, key, host_pair, name):
+        self.__secret=key
+        self.__pair = host_pair
+        self.__hostname = name
+
+    @property
+    def secret_key(self):
+        """The unic identify for this peer.
+
+        :return: The identifier.
+        :rtype: string
+        """
+        return self.__secret
+
+    @property
+    def peer_name(self):
+        """The unic identify for this peer.
+
+        :return: The identifier.
+        :rtype: string
+        """
+        return self.__hostname
+
+
+    @property
+    def host_port_pair(self):
+        """Host port pair.
+
+        :return: tuple.
+        :rtype: string
+        """
+        return self.__pair
+
+
+
+class SearchHeadGeneration(Collection):
+    """This class represents the collection of the peers 
+    available to a searchhead in a cluster 
+    Retrieve this collection using :meth:`Service.search_head_generation`.
+
+    """
+    def __init__(self, service, path=PATH_SEARCH_HEAD, cfg_item=Generation):
+        Collection.__init__(self, service, PATH_SEARCH_HEAD, item=cfg_item)
+
+    def __getitem__(self, key):
+        return Collection.__getitem__(self, key.lower())
+
+    def __contains__(self, name):
+        return Collection.__contains__(self, name.lower())
+
+    def create(self, arg):
+        """Not implemented ."""
+        pass 
+
+    def delete(self, name):
+        """ Not implemented."""
+        pass
+
 
 class Cluster(Collection):
     """This class represents the collection of cluster configuration items for this 
@@ -3383,31 +3528,29 @@ class Cluster(Collection):
         """Not implemented ."""
         pass 
 
-
     def delete(self, name):
         """ Not implemented."""
         pass
 
-class Master(Entity):
-    """This class represents a Splunk cluster master configuration.
+class ClusterPeers(Collection):
+    """This class represents the collection of cluster peers for this 
+    instance of Splunk. Retrieve this collection using :meth:`Service.ClusterPeers`.
     """
-    #cluster = Cluster( path=PATH_CLUSTER_CONFIG, cfg_item=ClusterConfig)
-    @property
-    def host_port_pair(self):
-        """Returns the replication factor configured for this cluster.
+    def __init__(self, service, path=PATH_MASTER_PEERS, cfg_item=ClusterPeer):
+        Collection.__init__(self, service, PATH_MASTER_PEERS, item=cfg_item)
 
-        :return: The replication factor.
-        :rtype: string
-        """
-        return self.service.master["host_port_pair"]
+    def __getitem__(self, key):
+        return Collection.__getitem__(self, key.lower())
 
-    @property
-    def replication_port(self):
-        """TCP port to listen for replicated data from another cluster member.
+    def __contains__(self, name):
+        return Collection.__contains__(self, name.lower())
 
-        :return: the port
-        :rtype: consult rest documentation for valid values
-        """
-        return self.service.master["replication_port"]
+    def create(self, arg):
+        """Not implemented ."""
+        pass 
+
+    def delete(self, name):
+        """ Not implemented."""
+        pass
 
 
